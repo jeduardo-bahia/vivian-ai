@@ -45,8 +45,8 @@ pip install -r requirements.txt
 ### 3️⃣ Configure as variáveis de ambiente
 
 Crie um arquivo `.env` na raiz do projeto:
-ELEVEN_API_KEY=sua_chave_aqui
-VOICE_ID=seu_voice_id_aqui
+<img width="329" height="50" alt="image" src="https://github.com/user-attachments/assets/a8dca393-5efc-4b28-bd26-b9810b554165" />
+
 
 Ou copie o modelo:
 cp .env.example .env
