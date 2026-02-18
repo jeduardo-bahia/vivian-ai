@@ -1,0 +1,8 @@
+ollama
+edge-tts
+pygame
+SpeechRecognition
+pyautogui
+elevenlabs
+python-dotenv
+pyaudio
