@@ -23,22 +23,8 @@ Vivian foi projetada para ser direta, objetiva e natural, com personalidade pró
 
 ## 🏛️ Arquitetura do Projeto
 
-vivian-ai/
-│
-├── vivian/
-│ ├── main.py
-│ ├── config.py
-│ ├── voice.py
-│ ├── llm.py
-│ ├── listener.py
-│ ├── commands.py
-│ ├── emotions.py
-│ └── utils.py
-│
-├── run.py
-├── requirements.txt
-├── .env.example
-└── README.md
+<img width="234" height="439" alt="image" src="https://github.com/user-attachments/assets/3386db6d-dadd-4ac2-b4d6-0c43c81f364e" />
+
 
 
 Arquitetura organizada para facilitar manutenção, testes e colaboração.
