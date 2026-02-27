@@ -23,8 +23,24 @@ Vivian foi projetada para ser direta, objetiva e natural, com personalidade pró
 
 ## 🏛️ Arquitetura do Projeto
 
-<img width="234" height="439" alt="image" src="https://github.com/user-attachments/assets/3386db6d-dadd-4ac2-b4d6-0c43c81f364e" />
-
+```
+vivian-ai/
+│
+├── vivian/
+│   ├── main.py
+│   ├── config.py
+│   ├── voice.py
+│   ├── llm.py
+│   ├── listener.py
+│   ├── commands.py
+│   ├── emotions.py
+│   └── utils.py
+│
+├── run.py
+├── requirements.txt
+├── .env.example
+└── README.md
+```
 
 
 Arquitetura organizada para facilitar manutenção, testes e colaboração.
@@ -46,8 +62,10 @@ pip install -r requirements.txt
 
 Crie um arquivo `.env` na raiz do projeto:
 
-<img width="329" height="50" alt="image" src="https://github.com/user-attachments/assets/a8dca393-5efc-4b28-bd26-b9810b554165" />
-
+```
+ELEVEN_API_KEY=sua_chave_aqui
+VOICE_ID=seu_voice_id_aqui
+```
 ---
 
 ## ▶️ Execução
