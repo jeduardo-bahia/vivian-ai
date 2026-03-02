@@ -1,0 +1,47 @@
+[
+  {
+    "nome": "Limpeza de Máquina",
+    "palavras": [
+      "executar",
+      "limpeza"
+    ],
+    "caminho": "C:/Users/jhona/OneDrive/Desktop/Automações/Limpeza.bat",
+    "ativo": true
+  },
+  {
+    "nome": "",
+    "palavras": [
+      "",
+      ""
+    ],
+    "caminho": "",
+    "ativo": false
+  },
+  {
+    "nome": "",
+    "palavras": [
+      "",
+      ""
+    ],
+    "caminho": "",
+    "ativo": false
+  },
+  {
+    "nome": "",
+    "palavras": [
+      "",
+      ""
+    ],
+    "caminho": "",
+    "ativo": false
+  },
+  {
+    "nome": "",
+    "palavras": [
+      "",
+      ""
+    ],
+    "caminho": "",
+    "ativo": false
+  }
+]

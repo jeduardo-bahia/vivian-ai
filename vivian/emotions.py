@@ -1,35 +1,33 @@
 import re
 
-HOTKEYS = {
-    "neutral": "0",
-    "joy": "1",
-    "angry": "2",
-    "sorrow": "3",
-    "fun": "4",
-    "surprise": "5",
-    "negacao": "6",
-    "ate": "7",
-    "parabens": "8"
-}
+# Cada regra: (padrão, emoção, gesto_ou_None)
+_REGRAS = [
+    (r"oh!",                         "surprise", None),
+    (r"(tchau|até logo|até mais|adeus|boa noite)", "ate",      "wave"),
+    (r"(haha|kkk|engraçado|rsrs)",   "fun",      None),
+    (r"(obrigado|obrigada|agradeço|grata|grato|excelente|perfeito)", "joy", "thankful"),
+    (r"(não|nunca|impossível)",      "negacao",  None),
+    (r"(triste|lamento|desculpe)",   "sorrow",   None),
+    (r"(odeio|raiva)",               "angry",    None),
+    (r"(incrível|nossa|uau|sério)",  "surprise", None),
+    (r"(parabéns|muito bem|ótimo)",  "parabens", None),
+]
 
-def detectar_emocao(texto: str) -> str:
+def detectar(texto: str) -> tuple[str, str | None]:
+    """Retorna (emocao, gesto) para o texto dado."""
     t = texto.lower().strip()
 
-    if "oh!" in t:
-        return "surprise"
-    if t.endswith("!"):
-        return "joy"
-    if re.search(r"(tchau|até logo|até mais)", t):
-        return "ate"
-    if re.search(r"(haha|kkk|engraçado)", t):
-        return "fun"
-    if re.search(r"(obrigado|excelente|perfeito)", t):
-        return "joy"
-    if re.search(r"(não|nunca|impossível)", t):
-        return "negacao"
-    if re.search(r"(triste|lamento|desculpe)", t):
-        return "sorrow"
-    if re.search(r"(odeio|raiva)", t):
-        return "angry"
+    # Exclamação final → alegria (se nenhuma regra mais específica pegar antes)
+    for padrao, emocao, gesto in _REGRAS:
+        if re.search(padrao, t):
+            return emocao, gesto
 
-    return "neutral"
+    if t.endswith("!"):
+        return "joy", None
+
+    return "neutral", None
+
+# Retrocompatibilidade — avatar_window ainda chama detectar_emocao em alguns lugares
+def detectar_emocao(texto: str) -> str:
+    emocao, _ = detectar(texto)
+    return emocao

@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Vivian</title>
+  <link rel="icon" href="data:,">
+  <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@300;400&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg:#09090e; --surface:#111118; --surface2:#18181f; --surface3:#1f1f2a;
+      --accent:#b896d8; --accent2:#7c5fa0; --accent3:#3d2f55;
+      --user-bg:#1a1a2e; --ai-bg:#13131e; --text:#ddd6f0; --text-dim:#7a7290; --border:#252535;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html,body { width:100%; height:100%; background:var(--bg); color:var(--text); font-family:'Crimson Pro',serif; overflow:hidden; user-select:none; }
+    #app { display:flex; flex-direction:column; height:100vh; }
+    #header { display:flex; align-items:center; justify-content:space-between; padding:10px 18px; background:var(--surface); border-bottom:1px solid var(--border); flex-shrink:0; z-index:10; }
+    #header-title { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:300; letter-spacing:0.3em; color:var(--accent); text-transform:uppercase; }
+    .header-controls { display:flex; gap:8px; }
+    .ctrl-btn { background:var(--surface3); border:1px solid var(--border); color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 12px; border-radius:4px; cursor:pointer; transition:all 0.2s; }
+    .ctrl-btn:hover { border-color:var(--accent2); color:var(--accent); }
+    .ctrl-btn.active { background:var(--accent3); border-color:var(--accent2); color:var(--accent); }
+    .ctrl-btn.stop { background:#2a1a1a; border-color:#5a2a2a; color:#c07070; }
+    .ctrl-btn.stop:hover { background:#3a1a1a; border-color:#a05050; color:#e09090; }
+    #chat-section { flex:1; display:flex; flex-direction:column; overflow:hidden; background:var(--bg); }
+    #messages { flex:1; overflow-y:auto; padding:12px 12px 8px; display:flex; flex-direction:column; gap:6px; scroll-behavior:smooth; }
+    #messages::-webkit-scrollbar { width:3px; }
+    #messages::-webkit-scrollbar-thumb { background:var(--accent3); border-radius:2px; }
+
+    /* Mensagens estilo WhatsApp */
+    .msg { display:flex; flex-direction:row; align-items:flex-end; gap:7px; max-width:80%; animation:msg-in 0.2s ease; }
+    @keyframes msg-in { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .msg.user   { align-self:flex-end;   flex-direction:row-reverse; }
+    .msg.vivian { align-self:flex-start; }
+
+    /* Avatar circular da Vivian */
+    .msg-avatar { width:30px; height:30px; border-radius:50%; overflow:hidden; flex-shrink:0; border:1.5px solid var(--accent3); }
+    .msg-avatar img { width:100%; height:100%; object-fit:cover; object-position:top; }
+    .msg.user .msg-avatar { display:none; }
+
+    /* Balão */
+    .msg-body { display:flex; flex-direction:column; }
+    .msg-name { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.1em; color:var(--accent2); margin-bottom:2px; padding-left:2px; }
+    .msg.user .msg-name { display:none; }
+    .msg-bubble { padding:9px 13px; font-size:14.5px; line-height:1.55; color:var(--text); white-space:pre-wrap; position:relative; max-width:100%; }
+    .msg.vivian .msg-bubble { background:var(--surface2); border:1px solid var(--border); border-radius:2px 14px 14px 14px; }
+    .msg.user   .msg-bubble { background:var(--accent3); border:1px solid var(--accent2); border-radius:14px 2px 14px 14px; color:var(--text); }
+
+    /* Timestamp */
+    .msg-time { font-family:'JetBrains Mono',monospace; font-size:8px; color:var(--text-dim); margin-top:3px; padding:0 2px; }
+    .msg.user .msg-time { text-align:right; }
+    #typing { padding:4px 16px; font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-dim); height:20px; }
+    #typing.hidden { opacity:0; }
+    #input-area { display:flex; align-items:center; gap:8px; padding:10px 14px 14px; background:var(--surface); border-top:1px solid var(--border); flex-shrink:0; }
+    #input-box { flex:1; background:var(--surface2); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:'Crimson Pro',serif; font-size:15px; padding:10px 14px; outline:none; transition:border-color 0.2s; resize:none; overflow-y:auto; max-height:100px; line-height:1.5; }
+    #input-box::placeholder { color:var(--text-dim); }
+    #input-box:focus { border-color:var(--accent2); }
+    #send-btn { width:42px; height:42px; background:var(--accent3); border:1px solid var(--accent2); border-radius:8px; color:var(--accent); font-size:16px; cursor:pointer; transition:all 0.2s; flex-shrink:0; }
+    #send-btn:hover { background:var(--accent2); color:white; }
+    #send-btn:disabled { opacity:0.4; cursor:not-allowed; }
+    #avatar-widget { position:fixed; bottom:70px; right:0; width:130px; height:180px; z-index:100; pointer-events:none; }
+    #avatar-canvas { width:100%; height:100%; display:block; }
+    #status-dot { position:fixed; bottom:76px; right:138px; display:flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); z-index:101; }
+    .dot { width:5px; height:5px; border-radius:50%; background:var(--accent2); animation:pulse 2s ease-in-out infinite; }
+    .dot.speaking { background:#7dcea0; animation:pulse-fast 0.4s ease-in-out infinite; }
+    .dot.loading  { background:var(--text-dim); }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+    @keyframes pulse-fast { 0%,100%{opacity:1} 50%{opacity:0.5} }
+    #avatar-loading { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; z-index:3; transition:opacity 0.8s ease; }
+    #avatar-loading.hidden { opacity:0; pointer-events:none; }
+    .loader-ring { width:28px; height:28px; border:1.5px solid var(--surface3); border-top-color:var(--accent); border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to{transform:rotate(360deg);} }
+    /* ── Painel de configurações ── */
+    #cfg-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+    #cfg-overlay.open { opacity:1; pointer-events:all; }
+    #cfg-panel {
+      position:fixed; top:0; right:0; height:100vh; width:280px;
+      background:var(--surface); border-left:1px solid var(--border);
+      z-index:201; transform:translateX(100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1);
+      display:flex; flex-direction:column; overflow:hidden;
+    }
+    #cfg-panel.open { transform:translateX(0); }
+    #cfg-header { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
+    #cfg-title { font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:0.25em; color:var(--accent); text-transform:uppercase; }
+    #cfg-close { background:none; border:none; color:var(--text-dim); font-size:18px; cursor:pointer; padding:2px 6px; border-radius:4px; transition:color 0.2s; }
+    #cfg-close:hover { color:var(--accent); }
+    #cfg-body { flex:1; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:20px; }
+    #cfg-body::-webkit-scrollbar { width:3px; }
+    #cfg-body::-webkit-scrollbar-thumb { background:var(--accent3); }
+    .cfg-section { display:flex; flex-direction:column; gap:10px; }
+    .cfg-section-title { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.25em; color:var(--text-dim); text-transform:uppercase; padding-bottom:6px; border-bottom:1px solid var(--border); }
+    .cfg-row { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+    .cfg-label { font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text); }
+    .cfg-desc { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); margin-top:2px; }
+    /* Toggle switch */
+    .cfg-toggle { position:relative; width:38px; height:20px; flex-shrink:0; }
+    .cfg-toggle input { opacity:0; width:0; height:0; }
+    .cfg-toggle-slider { position:absolute; inset:0; background:var(--surface3); border:1px solid var(--border); border-radius:20px; cursor:pointer; transition:0.2s; }
+    .cfg-toggle-slider:before { content:''; position:absolute; width:14px; height:14px; left:2px; top:2px; background:var(--text-dim); border-radius:50%; transition:0.2s; }
+    .cfg-toggle input:checked + .cfg-toggle-slider { background:var(--accent3); border-color:var(--accent2); }
+    .cfg-toggle input:checked + .cfg-toggle-slider:before { transform:translateX(18px); background:var(--accent); }
+    /* Select */
+    .cfg-select { background:var(--surface2); border:1px solid var(--border); color:var(--text); font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 8px; border-radius:4px; cursor:pointer; outline:none; transition:border-color 0.2s; }
+    .cfg-select:focus { border-color:var(--accent2); }
+    /* Botão de ação */
+    .cfg-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10px; padding:7px 14px; border-radius:4px; cursor:pointer; transition:all 0.2s; width:100%; text-align:left; }
+    .cfg-btn:hover { border-color:var(--accent2); color:var(--accent); }
+    .cfg-btn.danger { border-color:#5a2a2a; color:#c07070; }
+    .cfg-btn.danger:hover { background:#2a1a1a; border-color:#a05050; }
+    /* Automações */
+    .auto-slot { background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:10px; display:flex; flex-direction:column; gap:6px; }
+    .auto-slot.ativo { border-color:var(--accent2); }
+    .auto-slot-header { display:flex; align-items:center; justify-content:space-between; }
+    .auto-slot-num { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); }
+    .auto-input { background:var(--surface3); border:1px solid var(--border); color:var(--text); font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 8px; border-radius:4px; outline:none; width:100%; transition:border-color 0.2s; }
+    .auto-input:focus { border-color:var(--accent2); }
+    .auto-input::placeholder { color:var(--text-dim); }
+    .auto-palavras { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+    .auto-caminho-row { display:flex; gap:4px; }
+    .auto-caminho-row .auto-input { flex:1; }
+    .auto-browse { background:var(--surface3); border:1px solid var(--border); color:var(--text-dim); font-family:'JetBrains Mono',monospace; font-size:10px; padding:5px 8px; border-radius:4px; cursor:pointer; white-space:nowrap; transition:all 0.2s; flex-shrink:0; }
+    .auto-browse:hover { border-color:var(--accent2); color:var(--accent); }
+    .theme-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .theme-opt { padding:8px; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:all 0.2s; display:flex; flex-direction:column; gap:4px; align-items:center; }
+    .theme-opt:hover { border-color:var(--accent2); }
+    .theme-opt.active { border-color:var(--accent); background:var(--surface3); }
+    .theme-opt-label { font-family:'JetBrains Mono',monospace; font-size:9px; color:var(--text-dim); }
+    .theme-swatch { width:100%; height:20px; border-radius:3px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <span id="header-title">✦ Vivian</span>
+    <div class="header-controls">
+      <button class="ctrl-btn stop" id="btn-stop" onclick="window._stop()">■ parar</button>
+      <button class="ctrl-btn" id="btn-cfg" onclick="window._abrirCfg()">⚙</button>
+    </div>
+  </div>
+  <div id="chat-section">
+    <div id="messages"></div>
+    <div id="typing" class="hidden">vivian está digitando...</div>
+    <div id="input-area">
+      <textarea id="input-box" rows="1" placeholder="Digite uma mensagem..." autocomplete="off"></textarea>
+      <button id="send-btn">➤</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Painel de Configurações ── -->
+<div id="cfg-overlay" onclick="window._fecharCfg()"></div>
+<div id="cfg-panel">
+  <div id="cfg-header">
+    <span id="cfg-title">⚙ Configurações</span>
+    <button id="cfg-close" onclick="window._fecharCfg()">✕</button>
+  </div>
+  <div id="cfg-body">
+
+    <!-- Áudio -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Áudio</div>
+      <div class="cfg-row">
+        <div><div class="cfg-label">Voz ativa</div><div class="cfg-desc">Vivian fala em voz alta</div></div>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-voz" checked onchange="window._cfgVoz(this.checked)">
+          <span class="cfg-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="cfg-row">
+        <div><div class="cfg-label">Microfone</div><div class="cfg-desc">Entrada por voz</div></div>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="cfg-mic" onchange="window._cfgMic(this.checked)">
+          <span class="cfg-toggle-slider"></span>
+        </label>
+      </div>
+      <div class="cfg-row">
+        <div>
+          <div class="cfg-label">Motor de voz</div>
+          <div class="cfg-desc" id="cfg-engine-desc">Curto: ElevenLabs · Longo: Edge TTS</div>
+        </div>
+        <select class="cfg-select" id="cfg-engine" onchange="window._cfgEngine(this.value)">
+          <option value="hybrid" selected>Híbrido</option>
+          <option value="elevenlabs">ElevenLabs</option>
+          <option value="edge">Edge TTS</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- LLM -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Motor de IA</div>
+      <div class="cfg-row">
+        <div class="cfg-label">Backend</div>
+        <select class="cfg-select" id="cfg-llm" onchange="window._cfgLLM(this.value)">
+          <option value="ollama">Ollama (local)</option>
+          <option value="groq">Groq (cloud gratuito)</option>
+        </select>
+      </div>
+      <div id="cfg-groq-area" style="display:none; flex-direction:column; gap:8px;">
+        <div class="cfg-label" style="font-size:10px;">Chave API Groq</div>
+        <div class="cfg-desc">Gratuito em <span style="color:var(--accent)">console.groq.com</span></div>
+        <input type="password" id="cfg-groq-key" placeholder="gsk_..." 
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:'JetBrains Mono',monospace;font-size:10px;padding:6px 10px;border-radius:4px;outline:none;width:100%;"
+          oninput="window._cfgGroqKey(this.value)">
+        <div class="cfg-row" style="margin-top:2px;">
+          <div class="cfg-label" style="font-size:10px;">Modelo</div>
+          <select class="cfg-select" id="cfg-groq-model" onchange="window._cfgGroqModel(this.value)">
+            <option value="llama-3.1-8b-instant">Llama 3.1 8B (rápido)</option>
+            <option value="llama-3.3-70b-versatile">Llama 3.3 70B (melhor)</option>
+            <option value="mixtral-8x7b-32768">Mixtral 8x7B</option>
+            <option value="gemma2-9b-it">Gemma 2 9B</option>
+          </select>
+        </div>
+        <div id="cfg-llm-status" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-dim);"></div>
+      </div>
+    </div>
+
+    <!-- Avatar -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Avatar</div>
+      <div class="cfg-label" style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">Modelo VRM atual: <span id="cfg-vrm-nome" style="color:var(--accent)">vivian1.0.vrm</span></div>
+      <button class="cfg-btn" onclick="window._importarVRM()">📁 Importar novo VRM 1.0</button>
+    </div>
+
+    <!-- Tema -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Tema</div>
+      <div class="theme-grid">
+        <div class="theme-opt active" id="tema-roxo" onclick="window._cfgTema('roxo')">
+          <div class="theme-swatch" style="background:linear-gradient(135deg,#09090e,#3d2f55)"></div>
+          <span class="theme-opt-label">Roxo (padrão)</span>
+        </div>
+        <div class="theme-opt" id="tema-azul" onclick="window._cfgTema('azul')">
+          <div class="theme-swatch" style="background:linear-gradient(135deg,#090e14,#1a3a5c)"></div>
+          <span class="theme-opt-label">Azul</span>
+        </div>
+        <div class="theme-opt" id="tema-verde" onclick="window._cfgTema('verde')">
+          <div class="theme-swatch" style="background:linear-gradient(135deg,#090e0a,#1a3a22)"></div>
+          <span class="theme-opt-label">Verde</span>
+        </div>
+        <div class="theme-opt" id="tema-escuro" onclick="window._cfgTema('escuro')">
+          <div class="theme-swatch" style="background:linear-gradient(135deg,#050505,#1a1a1a)"></div>
+          <span class="theme-opt-label">Escuro</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automações -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Automações</div>
+      <div class="cfg-desc" style="margin-bottom:8px;">Diga as 2 palavras-chave para executar o arquivo</div>
+      <div id="auto-slots" style="display:flex;flex-direction:column;gap:12px;"></div>
+    </div>
+
+    <!-- Chat -->
+    <div class="cfg-section">
+      <div class="cfg-section-title">Chat</div>
+      <button class="cfg-btn danger" onclick="window._limparChat()">🗑 Limpar histórico do chat</button>
+    </div>
+
+  </div>
+</div>
+
+<div id="avatar-widget">
+  <canvas id="avatar-canvas"></canvas>
+  <div id="avatar-loading">
+    <div class="loader-ring"></div>
+    <span id="loading-text">carregando...</span>
+  </div>
+</div>
+<div id="status-dot"><div class="dot" id="dot"></div><span id="status-text">pronta</span></div>
+
+<script type="importmap">
+{"imports":{
+  "three":"https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js",
+  "three/addons/":"https://cdn.jsdelivr.net/npm/three@0.163.0/examples/jsm/",
+  "@pixiv/three-vrm":"https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@2.1.2/lib/three-vrm.module.js"
+}}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+
+// ── Avatar ──
+const VIVIAN_AVATAR = "http://127.0.0.1:8765/assets/vivian_avatar.png";
+
+// ── Estado ──
+let vozAtiva = true, micAtivo = false, ocupado = false;
+let currentVRM = null, speaking = false, mouthTimer = null;
+let currentEmotion = 'neutral';
+
+// ── Renderer ──
+const canvas = document.getElementById('avatar-canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, alpha:true, antialias:true });
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.setClearColor(0x000000, 0);
+
+const scene  = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(55, 130/180, 0.1, 20);
+
+scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+const dL = new THREE.DirectionalLight(0xffeeff, 1.4); dL.position.set(1,2,2); scene.add(dL);
+const fL = new THREE.DirectionalLight(0xb896d8, 0.6); fL.position.set(-1,1,1); scene.add(fL);
+
+function resizeWidget() {
+  const w = document.getElementById('avatar-widget');
+  const pw = w.offsetWidth || 130;
+  const ph = w.offsetHeight || 180;
+  renderer.setSize(pw, ph, false);
+  camera.aspect = pw / ph;
+  camera.updateProjectionMatrix();
+}
+resizeWidget();
+window.addEventListener('resize', resizeWidget);
+
+// ── Carrega VRM ──
+async function carregarTudo() {
+  await new Promise(res => {
+    if (window.pywebview) return res();
+    window.addEventListener('pywebviewready', res, { once:true });
+    setTimeout(res, 4000);
+  });
+
+  let vrmPath;
+  try { vrmPath = await window.pywebview.api.get_vrm_path(); }
+  catch(e) { document.getElementById('loading-text').textContent = 'erro'; return; }
+
+  const vrmLoader = new GLTFLoader();
+  vrmLoader.register(p => new VRMLoaderPlugin(p));
+  const vrm = await new Promise((res, rej) => {
+    vrmLoader.load(vrmPath,
+      gltf => {
+        const v = gltf.userData.vrm;
+        if (!v) return rej(new Error('VRM inválido'));
+        VRMUtils.removeUnnecessaryVertices(gltf.scene);
+        res(v);
+      },
+      p => { if(p.total>0) document.getElementById('loading-text').textContent=`${Math.round(p.loaded/p.total*100)}%`; },
+      rej
+    );
+  }).catch(e => { document.getElementById('loading-text').textContent='erro vrm'; console.error(e); return null; });
+
+  if (!vrm) return;
+
+  VRMUtils.rotateVRM0(vrm);
+  scene.add(vrm.scene);
+  currentVRM = vrm;
+
+  resizeWidget();
+  await new Promise(res => setTimeout(res, 150));
+  const box   = new THREE.Box3().setFromObject(vrm.scene);
+  const sz    = box.getSize(new THREE.Vector3());
+  const top   = box.max.y;
+  const lookY = top - sz.y * 0.08;
+  camera.position.set(0, lookY - 0.1, sz.y * 0.45);
+  camera.lookAt(0, lookY, 0);
+
+  document.getElementById('avatar-loading').classList.add('hidden');
+  console.log('[VRM] Pronta ✓');
+}
+
+// ── Helpers ──
+const lerp = (a,b,t) => a + (b-a)*t;
+function rigNorm(name, x, y, z, speed=0.06) {
+  const n = currentVRM?.humanoid?.getNormalizedBoneNode(name);
+  if (!n) return;
+  n.rotation.x = lerp(n.rotation.x, x, speed);
+  n.rotation.y = lerp(n.rotation.y, y, speed);
+  n.rotation.z = lerp(n.rotation.z, z, speed);
+}
+
+// ── Expressões ──
+const EXPR = {
+  neutral:{happy:0,angry:0,sad:0,surprised:0},
+  joy:{happy:0.9,angry:0,sad:0,surprised:0},
+  angry:{happy:0,angry:0.9,sad:0,surprised:0},
+  sorrow:{happy:0,angry:0,sad:0.9,surprised:0},
+  fun:{happy:0.7,angry:0,sad:0,surprised:0.3},
+  surprise:{happy:0,angry:0,sad:0,surprised:0.9},
+  negacao:{happy:0,angry:0.4,sad:0.2,surprised:0},
+  ate:{happy:0.5,angry:0,sad:0.2,surprised:0},
+  parabens:{happy:1,angry:0,sad:0,surprised:0.5},
+};
+let exprCur={happy:0,angry:0,sad:0,surprised:0};
+let exprTgt={happy:0,angry:0,sad:0,surprised:0};
+function setExpression(name){ exprTgt={...(EXPR[name]||EXPR.neutral)}; }
+function updateExpressions(s){
+  if(!currentVRM?.expressionManager) return;
+  const em=currentVRM.expressionManager;
+  ['happy','angry','sad','surprised'].forEach(k=>{
+    exprCur[k]=lerp(exprCur[k],exprTgt[k]??0,s);
+    try{em.setValue(k,exprCur[k]);}catch(_){}
+  });
+  em.update();
+}
+
+// ── Piscada ──
+let blinkV=0,nextBlink=3+Math.random()*4,blinkPh='open';
+function updateBlink(et,dt){
+  if(!currentVRM?.expressionManager) return;
+  const em=currentVRM.expressionManager;
+  if(et>nextBlink&&blinkPh==='open') blinkPh='closing';
+  if(blinkPh==='closing'){blinkV=Math.min(1,blinkV+dt*12);if(blinkV>=1)blinkPh='opening';}
+  else if(blinkPh==='opening'){
+    blinkV=Math.max(0,blinkV-dt*10);
+    if(blinkV<=0){blinkV=0;blinkPh='open';nextBlink=et+2.5+Math.random()*4;if(Math.random()<0.2)nextBlink=et+0.15;}
+  }
+  try{em.setValue('blinkLeft',blinkV);}catch(_){}
+  try{em.setValue('blinkRight',blinkV);}catch(_){}
+  try{em.setValue('blink',blinkV);}catch(_){}
+}
+
+// ── Boca ──
+const VISEMAS=['aa','ih','ou','ee','oh'];
+function zerarBoca(){
+  if(!currentVRM?.expressionManager) return;
+  VISEMAS.forEach(v=>{try{currentVRM.expressionManager.setValue(v,0);}catch(_){}});
+}
+function animMouth(){
+  if(!speaking){zerarBoca();return;}
+  zerarBoca();
+  const w=[0.4,0.15,0.15,0.15,0.15];const r=Math.random();let acc=0,idx=0;
+  for(let i=0;i<w.length;i++){acc+=w[i];if(r<acc){idx=i;break;}}
+  try{currentVRM.expressionManager.setValue(VISEMAS[idx],0.4+Math.random()*0.55);}catch(_){}
+  mouthTimer=setTimeout(animMouth,70+Math.random()*90);
+}
+function startSpeaking(){speaking=true;setStatus('speaking','falando');animMouth();}
+function stopSpeaking(){speaking=false;clearTimeout(mouthTimer);zerarBoca();setStatus('ready','pronta');}
+window.startSpeaking=startSpeaking;
+window.stopSpeaking=stopSpeaking;
+
+// ── Poses ──
+const POSES={
+  neutral:{hX:0,hY:0,hZ:0},
+  joy:{hX:-0.08,hY:0.05,hZ:0.06},
+  angry:{hX:0.06,hY:0,hZ:-0.04},
+  sorrow:{hX:0.10,hY:0,hZ:0.08},
+  surprise:{hX:-0.10,hY:0,hZ:0},
+  fun:{hX:-0.06,hY:0.08,hZ:0.05},
+  negacao:{hX:0.04,hY:-0.08,hZ:-0.03},
+  ate:{hX:-0.05,hY:0.06,hZ:0.04},
+  parabens:{hX:-0.12,hY:0.04,hZ:0.07},
+};
+let curP={...POSES.neutral}, tgtP={...POSES.neutral};
+function lerpPose(s){Object.keys(tgtP).forEach(k=>{curP[k]=lerp(curP[k],tgtP[k],s);});}
+
+let emocaoTimer = null;
+window.setEmotion = (name) => {
+  currentEmotion = name;
+  setExpression(name);
+  tgtP = {...(POSES[name]||POSES.neutral)};
+  if (emocaoTimer) clearTimeout(emocaoTimer);
+  if (name !== 'neutral') {
+    emocaoTimer = setTimeout(() => {
+      currentEmotion = 'neutral';
+      setExpression('neutral');
+      tgtP = {...POSES.neutral};
+      emocaoTimer = null;
+    }, 2000);
+  }
+};
+
+window.setThinking = (v) => {
+  setStatus(v ? 'loading' : 'ready', v ? 'pensando' : 'pronta');
+  tgtP = v ? {hX:-0.08, hY:0.12, hZ:0.10} : {...(POSES[currentEmotion]||POSES.neutral)};
+};
+
+// ── Gestos procedurais ──
+let gesto = null;
+window.playGesture = (nome) => {
+  const duracoes = { wave:3.0, thankful:2.5 };
+  gesto = { nome, t:0, duracao: duracoes[nome]||2.0 };
+};
+
+function updateGesto(dt) {
+  if (!gesto) return;
+  gesto.t += dt;
+  if (gesto.t >= gesto.duracao) { gesto = null; return; }
+  const p    = gesto.t / gesto.duracao;
+  const fade = Math.sin(p * Math.PI);
+
+  if (gesto.nome === 'wave') {
+    const wave = Math.sin(gesto.t * 8) * 0.3 * fade;
+    rigNorm('rightUpperArm', -0.3*fade, wave, 0.3, 1.0);
+    rigNorm('rightLowerArm',  0.4*fade, 0, 0, 1.0);
+    rigNorm('rightHand', wave*0.5, wave, 0, 1.0);
+    ['rightIndexProximal','rightMiddleProximal','rightRingProximal','rightLittleProximal']
+      .forEach(b => rigNorm(b, 0.1+Math.sin(gesto.t*6)*0.3*fade, 0, 0, 0.2));
+  }
+
+  if (gesto.nome === 'thankful') {
+    // Inclina levemente a cabeça e junta as mãos (braços pra frente)
+    rigNorm('head', -0.15*fade, 0, 0, 0.1);
+    rigNorm('leftUpperArm',  -0.3*fade, 0, -0.4*fade, 0.1);
+    rigNorm('rightUpperArm', -0.3*fade, 0,  0.4*fade, 0.1);
+    rigNorm('leftLowerArm',   0.6*fade, 0, 0, 0.1);
+    rigNorm('rightLowerArm',  0.6*fade, 0, 0, 0.1);
+  }
+}
+
+// ── Offsets únicos por sessão ──
+const O = {hY:0.22+Math.random()*0.10, hZ:0.17+Math.random()*0.08};
+const N = {
+  a:Math.random()*100, b:Math.random()*100, c:Math.random()*100,
+  d:Math.random()*100, e:Math.random()*100, f:Math.random()*100,
+};
+
+// ── Loop ──
+const clock = new THREE.Clock();
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=clock.getDelta(), et=clock.getElapsedTime();
+  if(currentVRM){
+    updateBlink(et,dt);
+    updateExpressions(0.05);
+    currentVRM.update(dt);
+    lerpPose(0.04);
+
+    const sm   = speaking ? 1.0 : 0.0;
+    const spd  = speaking ? 1.3 : 1.0;
+    const breath  = Math.sin(et*1.7*spd)*0.015;
+    const breath2 = Math.sin(et*1.7*spd+0.5)*0.010;
+    const sway    = Math.sin(et*0.55+N.a)*0.020;
+    const sway2   = Math.sin(et*0.48+N.b)*0.012;
+    const mt1 = Math.sin(et*3.1+N.c)*0.006;
+    const mt2 = Math.sin(et*2.7+N.d)*0.006;
+    const mt3 = Math.sin(et*4.3+N.e)*0.004;
+    const fwdLean = lerp(0, 0.06, sm);
+    const lookUp  = lerp(-0.05, -0.12, sm);
+
+    rigNorm('head',
+      curP.hX + Math.sin(et*0.13+N.a)*0.020 + breath*0.4 + mt1 + fwdLean*0.5 + lookUp,
+      curP.hY + Math.sin(et*O.hY)*0.055*(1+sm*0.6) + sway*0.5 + mt2,
+      curP.hZ + Math.sin(et*O.hZ)*0.025 + sway*0.4 + mt3);
+    rigNorm('neck',
+      Math.sin(et*0.11+N.b)*0.014 + curP.hX*0.3 + breath*0.3 + fwdLean*0.3 + lookUp*0.4,
+      Math.sin(et*O.hY*0.8)*0.018 + sway*0.3,
+      sway*0.18);
+    rigNorm('spine', breath*0.7+fwdLean*0.4, sway2*0.6, sway*0.35);
+    rigNorm('chest', breath*1.1+fwdLean*0.3, sway2*0.8, sway*0.45);
+    const shlift = breath2*0.9 + sm*0.025;
+    rigNorm('leftShoulder',  shlift, 0, -0.06+breath2*0.4);
+    rigNorm('rightShoulder', shlift, 0,  0.06-breath2*0.4);
+    const armSwayL = Math.sin(et*0.65+N.c)*0.055 + sm*0.05;
+    const armSwayR = Math.sin(et*0.65+N.d)*0.055 + sm*0.05;
+    rigNorm('leftUpperArm',  -0.05+breath2*0.3,  armSwayL*0.4, -1.05+shlift*0.5);
+    rigNorm('rightUpperArm', -0.05+breath2*0.3, -armSwayR*0.4,  1.05-shlift*0.5);
+    const elbowL = 0.10+Math.sin(et*0.55+N.e)*0.06+sm*0.08;
+    const elbowR = 0.10+Math.sin(et*0.55+N.f)*0.06+sm*0.08;
+    rigNorm('leftLowerArm',  elbowL, 0, 0);
+    rigNorm('rightLowerArm', elbowR, 0, 0);
+    const fingerCurl = 0.18+breath*4.5;
+    const fingerSway = Math.sin(et*0.9+N.a)*0.07;
+    ['leftThumbProximal','leftIndexProximal','leftMiddleProximal','leftRingProximal','leftLittleProximal']
+      .forEach((b,i) => rigNorm(b, fingerCurl+i*0.03, fingerSway, 0, 0.03));
+    ['rightThumbProximal','rightIndexProximal','rightMiddleProximal','rightRingProximal','rightLittleProximal']
+      .forEach((b,i) => rigNorm(b, fingerCurl+i*0.03, -fingerSway, 0, 0.03));
+
+    updateGesto(dt);
+  }
+  renderer.render(scene,camera);
+}
+animate();
+carregarTudo();
+
+// ── Status ──
+function setStatus(s,txt){
+  document.getElementById('dot').className='dot'+(s==='speaking'?' speaking':s==='loading'?' loading':'');
+  document.getElementById('status-text').textContent=txt;
+}
+
+// ── Chat ──
+function addMessage(nome, texto, lado){
+  const msgs = document.getElementById('messages');
+  const d = document.createElement('div');
+  d.className = 'msg ' + lado;
+  const now = new Date();
+  const time = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0');
+  const avatarHtml = lado === 'vivian'
+    ? `<div class="msg-avatar"><img src="${VIVIAN_AVATAR}" alt="Vivian"/></div>`
+    : '';
+  const nameHtml = lado === 'vivian' ? `<div class="msg-name">Vivian</div>` : '';
+  d.innerHTML = `
+    ${avatarHtml}
+    <div class="msg-body">
+      ${nameHtml}
+      <div class="msg-bubble">${texto}</div>
+      <div class="msg-time">${time}</div>
+    </div>`;
+  msgs.appendChild(d);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function setTyping(v){document.getElementById('typing').classList.toggle('hidden',!v);}
+function setInputEnabled(v){
+  document.getElementById('input-box').disabled=!v;
+  document.getElementById('send-btn').disabled=!v;
+}
+
+window.salvarAuto = salvarAuto;
+window.browsePath = browsePath;
+window.doEnviar = doEnviar;
+
+addMessage('Vivian','Olá. Estou pronta.','vivian');
+document.getElementById('input-box').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doEnviar(); }
+});
+document.getElementById('input-box').addEventListener('input', function() {
+  this.style.height = 'auto';
+  this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+});
+document.getElementById('send-btn').addEventListener('click', ()=>doEnviar());
+
+async function doEnviar(){
+  if(ocupado) return;
+  const box=document.getElementById('input-box');
+  const txt=box.value.trim();
+  if(!txt) return;
+  box.value='';
+  box.style.height='auto';
+  addMessage('Você',txt,'user');
+  ocupado=true; setInputEnabled(false); setTyping(true); setStatus('loading','pensando');
+  try{
+    const r = await window.pywebview.api.processar(txt, vozAtiva);
+    setTyping(false);
+    addMessage('Vivian', r.resposta, 'vivian');
+    window.setEmotion(r.emocao||'neutral');
+  }catch(e){
+    setTyping(false);
+    addMessage('Vivian','Ocorreu um erro.','vivian');
+    console.error(e);
+  }
+  setStatus('ready','pronta'); setInputEnabled(true); ocupado=false;
+  document.getElementById('input-box').focus();
+}
+
+window._stop = () => {
+  window.pywebview.api.parar();
+  stopSpeaking();
+  setStatus('ready','pronta');
+  setTyping(false);
+  setInputEnabled(true);
+  ocupado=false;
+  document.getElementById('input-box').focus();
+};
+window.recarregarVRM = async (novoPath) => {
+  if (currentVRM) {
+    scene.remove(currentVRM.scene);
+    currentVRM = null;
+  }
+  document.getElementById('avatar-loading').classList.remove('hidden');
+  document.getElementById('loading-text').textContent = 'carregando...';
+  const vrmLoader = new GLTFLoader();
+  vrmLoader.register(p => new VRMLoaderPlugin(p));
+  const vrm = await new Promise((res, rej) => {
+    vrmLoader.load(novoPath,
+      gltf => { const v = gltf.userData.vrm; if (!v) return rej(); VRMUtils.removeUnnecessaryVertices(gltf.scene); res(v); },
+      null, rej
+    );
+  }).catch(() => null);
+  if (!vrm) return;
+  VRMUtils.rotateVRM0(vrm);
+  scene.add(vrm.scene);
+  currentVRM = vrm;
+  const box = new THREE.Box3().setFromObject(vrm.scene);
+  const sz  = box.getSize(new THREE.Vector3());
+  const top = box.max.y;
+  const lookY = top - sz.y * 0.08;
+  camera.position.set(0, lookY - 0.1, sz.y * 0.45);
+  camera.lookAt(0, lookY, 0);
+  document.getElementById('avatar-loading').classList.add('hidden');
+};
+// ── Automações ──
+async function carregarAutomacoes() {
+  const slots = await window.pywebview.api.get_automacoes();
+  const container = document.getElementById('auto-slots');
+  container.innerHTML = '';
+  slots.forEach((auto, i) => {
+    const div = document.createElement('div');
+    div.className = 'auto-slot' + (auto.ativo ? ' ativo' : '');
+    div.id = `auto-slot-${i}`;
+    div.innerHTML = `
+      <div class="auto-slot-header">
+        <span class="auto-slot-num">Automação ${i+1}</span>
+        <label class="cfg-toggle">
+          <input type="checkbox" id="auto-ativo-${i}" ${auto.ativo ? 'checked' : ''}>
+          <span class="cfg-toggle-slider"></span>
+        </label>
+      </div>
+      <input class="auto-input" id="auto-nome-${i}" placeholder="Nome (ex: Relatório)" value="${auto.nome||''}">
+      <div class="auto-palavras">
+        <input class="auto-input" id="auto-p1-${i}" placeholder="Palavra 1" value="${auto.palavras?.[0]||''}">
+        <input class="auto-input" id="auto-p2-${i}" placeholder="Palavra 2" value="${auto.palavras?.[1]||''}">
+      </div>
+      <div class="auto-caminho-row">
+        <input class="auto-input" id="auto-path-${i}" placeholder="Caminho do arquivo..." value="${auto.caminho||''}">
+        <button class="auto-browse" onclick="browsePath(${i})">📁</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
+        <button class="cfg-btn" style="flex:1;" onclick="salvarAuto(${i})">💾 Salvar</button>
+        <span id="auto-status-${i}" style="font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--text-dim);"></span>
+      </div>`;
+    container.appendChild(div);
+  });
+}
+
+function salvarAuto(i) {
+  const nome    = document.getElementById(`auto-nome-${i}`)?.value?.trim() || '';
+  const p1      = document.getElementById(`auto-p1-${i}`)?.value?.trim() || '';
+  const p2      = document.getElementById(`auto-p2-${i}`)?.value?.trim() || '';
+  const caminho = document.getElementById(`auto-path-${i}`)?.value?.trim() || '';
+  const ativo   = document.getElementById(`auto-ativo-${i}`)?.checked ? true : false;
+  const slot    = document.getElementById(`auto-slot-${i}`);
+  const status  = document.getElementById(`auto-status-${i}`);
+
+  console.log(`[Auto] salvarAuto(${i})`, {nome, p1, p2, caminho, ativo});
+
+  if (!p1 || !p2 || !caminho) {
+    console.warn(`[Auto] Campos incompletos`);
+    if (status) { status.textContent = '⚠ preencha todos os campos'; status.style.color = '#c07070'; }
+    return;
+  }
+
+  if (slot) slot.className = 'auto-slot' + (ativo ? ' ativo' : '');
+
+  try {
+    window.pywebview.api.salvar_automacao(i, nome, p1, p2, caminho, ativo).then(ok => {
+      console.log(`[Auto] Resultado salvar:`, ok);
+      if (status) {
+        status.textContent = ok ? '✓ salvo' : '✗ erro';
+        status.style.color = ok ? 'var(--accent)' : '#c07070';
+        setTimeout(() => { status.textContent = ''; }, 2000);
+      }
+    }).catch(err => {
+      console.error(`[Auto] Erro ao salvar:`, err);
+      if (status) { status.textContent = '✗ erro'; status.style.color = '#c07070'; }
+    });
+  } catch(e) {
+    console.error(`[Auto] Exceção:`, e);
+  }
+}
+
+async function browsePath(i) {
+  console.log(`[Auto] browsePath(${i})`);
+  try {
+    const path = await window.pywebview.api.selecionar_arquivo_auto();
+    console.log(`[Auto] Path retornado:`, path);
+    if (path) {
+      document.getElementById(`auto-path-${i}`).value = path;
+    }
+  } catch(e) {
+    console.error(`[Auto] Erro no browse:`, e);
+  }
+}
+
+window._abrirCfg = () => {
+  document.getElementById('cfg-panel').classList.add('open');
+  document.getElementById('cfg-overlay').classList.add('open');
+  carregarAutomacoes();
+};
+window._fecharCfg = () => {
+  document.getElementById('cfg-panel').classList.remove('open');
+  document.getElementById('cfg-overlay').classList.remove('open');
+};
+
+window._cfgLLM = (motor) => {
+  const groqArea = document.getElementById('cfg-groq-area');
+  groqArea.style.display = motor === 'groq' ? 'flex' : 'none';
+  const key = document.getElementById('cfg-groq-key').value;
+  window.pywebview.api.set_llm_motor(motor, key);
+  document.getElementById('cfg-llm-status').textContent =
+    motor === 'groq' ? '⚡ Groq ativo — insira sua chave acima' : '';
+};
+
+window._cfgGroqKey = (key) => {
+  const motor = document.getElementById('cfg-llm').value;
+  if (motor === 'groq') {
+    window.pywebview.api.set_llm_motor('groq', key);
+    document.getElementById('cfg-llm-status').textContent =
+      key.length > 10 ? '✓ Chave salva' : '⚠ Chave inválida';
+  }
+};
+
+window._cfgGroqModel = (modelo) => {
+  window.pywebview.api.set_groq_model(modelo);
+};
+
+window._cfgVoz = (v) => {
+  vozAtiva = v;
+};
+
+window._cfgMic = (v) => {
+  micAtivo = v;
+  window.pywebview.api.toggle_mic(v);
+};
+
+window._cfgEngine = (v) => {
+  const desc = {
+    hybrid:      'Curto: ElevenLabs · Longo: Edge TTS',
+    elevenlabs:  'Sempre ElevenLabs (consome créditos)',
+    edge:        'Sempre Edge TTS (gratuito)',
+  };
+  document.getElementById('cfg-engine-desc').textContent = desc[v] || '';
+  window.pywebview.api.set_engine(v);
+};
+
+window._importarVRM = async () => {
+  const result = await window.pywebview.api.importar_vrm();
+  if (result) {
+    document.getElementById('cfg-vrm-nome').textContent = result;
+  }
+};
+
+const TEMAS = {
+  roxo:   { '--bg':'#09090e','--surface':'#111118','--surface2':'#18181f','--surface3':'#1f1f2a','--accent':'#b896d8','--accent2':'#7c5fa0','--accent3':'#3d2f55','--border':'#252535' },
+  azul:   { '--bg':'#090e14','--surface':'#0e1520','--surface2':'#141e2a','--surface3':'#1a2840','--accent':'#7ab3e0','--accent2':'#4a7fb0','--accent3':'#1a3a5c','--border':'#1e2e40' },
+  verde:  { '--bg':'#090e0a','--surface':'#0e150f','--surface2':'#141e15','--surface3':'#1a2a1c','--accent':'#7ac48a','--accent2':'#4a9458','--accent3':'#1a3a22','--border':'#1e2e20' },
+  escuro: { '--bg':'#050505','--surface':'#0d0d0d','--surface2':'#121212','--surface3':'#1a1a1a','--accent':'#aaaaaa','--accent2':'#777777','--accent3':'#333333','--border':'#222222' },
+};
+let temaAtual = 'roxo';
+
+window._cfgTema = (nome) => {
+  const tema = TEMAS[nome];
+  if (!tema) return;
+  const root = document.documentElement;
+  Object.entries(tema).forEach(([k,v]) => root.style.setProperty(k, v));
+  document.querySelectorAll('.theme-opt').forEach(el => el.classList.remove('active'));
+  document.getElementById(`tema-${nome}`)?.classList.add('active');
+  temaAtual = nome;
+};
+
+window._limparChat = () => {
+  if (!confirm('Limpar todo o histórico do chat?')) return;
+  const msgs = document.getElementById('messages');
+  msgs.innerHTML = '';
+  addMessage('Vivian', 'Histórico limpo. Estou pronta.', 'vivian');
+  window.pywebview.api.limpar_memoria();
+  window._fecharCfg();
+};
+</script>
+</body>
+</html>
